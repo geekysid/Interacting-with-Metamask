@@ -1,92 +1,20 @@
-let userAddress = null;
+window.userWalletAddress = null;
 let networkID = null;
 
-// handeling button that aloows to connect to metamask
-const handleConnectBtn = action => {
-    if (action === 'disable') {
-        document.getElementById('loginBTN').setAttribute('disable', true);
-        document.getElementById('loginBTN').innerText = `You are logged in using ${userAddress} address`;
-    } else {
-        document.getElementById('loginBTN').removeAttribute('disable');
-        document.getElementById('loginBTN').innerText = `Login & Save ETH Address`;
-    }
-}
-
-// function used to hide/unhide a button
-const btnHideUnhide = (el, action) => {
-    const list = el.classList;
-    if (action === 'hide') {
-        if (!list.contains('hidden')) {
-            el.classList.add('hidden');
-        }
-    } else if (action === 'show') {
-        if (list.contains('hidden')) {
-            el.classList.remove('hidden');
-        }
-    }
-}
+// rounded bg-white border border-gray-400 hover:bg-gray-100 py-2 px-4 text-gray-600 hover:text-gray-700
 
 // functioned when page is loaded
-function onLoad() {
+const onLoad = async () => {
     // continue is metamask in installed in browser
     if(window.ethereum) {
-        if (checkMetamaskConnection()) {
-
+        if (await checkMetamaskConnection()) {
+            handleConnectBtn('disable');
+            btnHideUnhide(document.getElementById("showNetwork"), "show");
         }
     } else {
-        alert("Metamask is not installed.")
-    }
-    handleConnectBtn();
-    console.log(window.ethereum.network);
-    console.log(window.ethereum.address);
-}
-
-// testing metamask functionalities
-if (window.ethereum) {
-    // if chain is changed - returns new chain ID in hex
-    window.ethereum.on("chainChanged", event => {
-        networkID = parseInt(event, 16);
-        console.log(`Event: chainChanged, ${networkID}`);
-        alert(`You changed network to ID ${networkID}`);
-        showNetwork();
-    });
-
-    // if account is changed - returns account address that is connected
-    window.ethereum.on("accountsChanged", accounts => {
-        console.log(`Event: accountChanged || ${accounts}`);
-        userAddress = accounts[0];
-        alert(`You are now connected with ${userAddress} address`);
-        handleConnectBtn('disable');
-    })
-
-    // if any message is sent from metamask
-    window.ethereum.on("message", message => console.log(`Event: message || ${message}`));
-
-    // when connected to Metamask
-    window.ethereum.on("connect", info => console.log(`Event: connect || ${info}`));
-
-    // when disconnected from metamask
-    window.ethereum.on("disconnect", error => console.log(`Event: disconnect || ${error}`));
-
-    // // get provider details
-    // const provider = Web3.providers.WebsocketProvider(window.ethereum);
-    // console.log(`Provider: ${provider}`);
-
-    // // get signer details
-    // const signer = provider.getSigner();
-    // console.log(`Signer: ${signer}`);
-}
-
-const checkMetamaskConnection = async () => {
-    let accounts = await window.ethereum.request({method: 'eth_accounts'});
-    console.log(accounts)
-    if (accounts.length == 0) {
-        console.log("Not conncted to metamask");
-        return false;
-    } else {
-        userAddress = accounts[0];
-        console.log(`Conncted to metamask using address: ${accounts[0]}`);
-        return true;
+        alert("Metamask is not installed.");
+        handleConnectBtn('no-metamask');
+        btnHideUnhide(document.getElementById("showNetwork"), "hide");
     }
 }
 
@@ -96,38 +24,41 @@ const loginWithMetamask = async () => {
         // NEW METHOD to get permission to get connected to metamask
         try{
             let result = await window.ethereum.request({
-                method: 'wallet_requestPermissions',
+                method: 'eth_requestAccounts',
                 params: [{
                     eth_accounts: {}
                 }]
             });
-            console.log(result);
-            userAddress = result[0]['caveats'][0]['value'][0];
-            console.log(`You are logged in using ${userAddress} address`);
-            // setupWeb3();
+            window.userWalletAddress = result[0];
+            console.log(`You are logged in using ${window.userWalletAddress} address`);
             handleConnectBtn('disable');
             btnHideUnhide(document.getElementById("showNetwork"), "show");
         } catch(error) {
             console.log(error);
         }
-
-        // get accounts conneted o the website via Metamask
-        try {
-            let accounts = await window.ethereum.request({
-                method: 'eth_requestAccounts'
-            });
-            console.log(accounts);
-        } catch(error) {
-            console.log(error);
-        }
     } else{
-        console.log("4");
+        handleConnectBtn('no-metamask');
+    }
+}
+
+// checking if website is connected to Metamask
+const checkMetamaskConnection = async () => {
+    let accounts = await window.ethereum.request({method: 'eth_accounts'});
+    if (accounts.length == 0) {
+        handleConnectBtn();
+        networkID = null;
+        btnHideUnhide(document.getElementById("showNetwork"), "hide");
+        console.log("Not conncted to metamask");
+        return false;
+    } else {
+        window.userWalletAddress = accounts[0];
+        return true;
     }
 }
 
 // show network ID
 const showNetwork = async () => {
-    if (window.ethereum && userAddress) {
+    if (window.ethereum && window.userWalletAddress) {
         networkID = await window.ethereum.networkVersion;
         let networkName = null;
         if (networkID === '1') {
@@ -143,6 +74,66 @@ const showNetwork = async () => {
         } else {
             networkName = "Localhost";
         }
+        console.log(networkID);
         document.getElementById("showNetwork").innerText = `Connected to network with ID: ${networkID} (${networkName})`;
     }
+}
+
+// handeling button that aloows to connect to metamask
+const handleConnectBtn = action => {
+    if (action === 'disable') {
+        document.getElementById('loginBTN').setAttribute('disable', true);
+        document.getElementById('loginBTN').innerText = `You are logged in using ${window.userWalletAddress} address`;
+    } else if (action === 'no-metamask') {
+        document.getElementById('loginBTN').setAttribute('disable', true);
+        document.getElementById('loginBTN').innerText = `Metamask is not Installed.`;
+    } else {
+        document.getElementById('loginBTN').removeAttribute('disable');
+        document.getElementById('loginBTN').innerText = `Connect to Metamask`;
+    }
+}
+
+// function used to hide/unhide a button
+const btnHideUnhide = (el, action) => {
+    const list = el.classList;
+    if (action === 'hide') {
+        if (!list.contains('hidden')) {
+            el.classList.add('hidden');
+        }
+    } else if (action === 'show') {
+        if (list.contains('hidden')) {
+            el.classList.remove('hidden');
+        }
+        showNetwork();
+    }
+}
+
+// testing metamask EVENTS
+if (window.ethereum) {
+    // if chain is changed - returns new chain ID in hex
+    window.ethereum.on("chainChanged", event => {
+        networkID = parseInt(event, 16);
+        console.log(`Event: chainChanged, ${networkID}`);
+        alert(`You changed network to ID ${networkID}`);
+        showNetwork();
+    });
+
+    // if account is changed - returns account address that is connected
+    window.ethereum.on("accountsChanged", async (accounts) => {
+        if (await checkMetamaskConnection()) {
+            console.log(`Event: accountChanged || ${accounts}`);
+            window.userWalletAddress = accounts[0];
+            alert(`You are now connected with ${window.userWalletAddress} address`);
+            handleConnectBtn('disable');
+        }
+    });
+
+    // if any message is sent from metamask
+    window.ethereum.on("message", message => console.log(`Event: message || ${message}`));
+
+    // when connected to Metamask
+    window.ethereum.on("connect", info => console.log(`Event: connect || ${info}`));
+
+    // when disconnected from metamask
+    window.ethereum.on("disconnect", () => console.log(`Event: disconnect`));
 }
